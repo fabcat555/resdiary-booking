@@ -1,0 +1,23 @@
+{
+  "name": "resdiary-booking",
+  "version": "1.0.0",
+  "description": "Tool Playwright per prenotazioni automatiche su ristoranti che usano ResDiary",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "book": "node book.js",
+    "book:headed": "HEADED=1 node book.js",
+    "book:debug": "node --inspect-brk book.js",
+    "book:debug:run": "node --inspect book.js",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "install-browsers": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "date-fns": "^3.6.0",
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

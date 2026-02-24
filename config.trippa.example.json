@@ -1,0 +1,49 @@
+{
+  "bookingUrl": "https://www.trippamilano.it/book-a-table-2/",
+  "useUrlParams": false,
+  "_comment_urlParams": "Questo widget non supporta parametri in URL: data, ora e coperti vanno selezionati dallo script (dropdown + calendario).",
+  "_comment_iframe": "Se usi l'URL diretto del widget sopra, imposta \"iframe\": \"\" per saltare la ricerca iframe (stessi selectors, pagina = widget).",
+  "reservation": {
+    "date": "2026-02-20",
+    "time": "19:30",
+    "partySize": 2
+  },
+  "contact": {
+    "firstName": "Mario",
+    "lastName": "Rossi",
+    "email": "mario.rossi@example.com",
+    "phone": "333 1234567"
+  },
+  "payment": {
+    "cardNumber": "4242424242424242",
+    "expiry": "12/28",
+    "cvc": "123",
+    "cardholderName": "Mario Rossi"
+  },
+  "selectors": {
+    "iframe": "iframe[src*='resdiary'], iframe[src*='booking.resdiary']",
+    "partySizeDropdown": "#party-size-input .covers-input, #party-size-input .dropdown-selected, #party-size-input",
+    "datePickerDay": "td[data-action='selectDay'][data-day='__DATE__']:not(.disabled)",
+    "datePickerNext": "th.next[data-action='next']:not(.disabled)",
+    "datePickerPrev": "th.prev[data-action='previous']:not(.disabled)",
+    "timeDropdown": ".rd-time-dropdown .dropdown-selected, .time-dropdown-input, .selected-text",
+    "firstNameInput": "#firstName",
+    "lastNameInput": "#lastName",
+    "emailInput": "#emailAddress",
+    "phoneInput": "#mobile",
+    "nextButton": "button.btn-next",
+    "cardholderNameInput": "input[data-id='cardholder-name-input']",
+    "stripeCardFrame": "#card-number iframe",
+    "stripeExpiryFrame": "#card-expiry iframe",
+    "stripeCvcFrame": "#card-cvc iframe",
+    "payButton": "button[data-id='btn-next'], button.btn-next"
+  },
+  "timeout": 30000,
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "waitAfterPageLoad": 800,
+  "maxDateLookaheadDays": 31,
+  "waitAfterPaymentConfirm": 30000
+}

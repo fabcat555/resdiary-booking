@@ -1,0 +1,44 @@
+{
+  "bookingUrl": "https://book.resdiary.com/widget/Standard/NomeRistorante/12345",
+  "useUrlParams": false,
+  "_comment_useUrlParams": "Molti widget ResDiary (es. Trippa) non supportano date/time/partySize in URL; lascia false = selezione da UI.",
+  "reservation": {
+    "date": "2025-03-15",
+    "time": "19:30",
+    "partySize": 2
+  },
+  "contact": {
+    "name": "Mario Rossi",
+    "email": "mario.rossi@example.com",
+    "phone": "+39 333 1234567"
+  },
+  "payment": {
+    "cardNumber": "4242424242424242",
+    "expiry": "12/28",
+    "cvc": "123",
+    "cardholderName": "Mario Rossi"
+  },
+  "_comment_payment": "Per non mettere la carta in config.json usa le variabili d'ambiente: STRIPE_CARD_NUMBER, STRIPE_EXPIRY, STRIPE_CVC, STRIPE_CARDHOLDER_NAME",
+  "selectors": {
+    "iframe": "iframe[src*='resdiary'], iframe[src*='book.']",
+    "dateInput": "input[name='date'], input[id*='date'], input[type='date']",
+    "timeSelect": "select[name='time'], select[id*='time']",
+    "partySizeSelect": "select[name='partySize'], select[name='covers'], select[id*='party'], select[id*='covers']",
+    "nameInput": "input[name='name'], input[name='firstName'], input[id*='name']",
+    "emailInput": "input[name='email'], input[type='email'], input[id*='email']",
+    "phoneInput": "input[name='phone'], input[name='telephone'], input[id*='phone'], input[type='tel']",
+    "submitButton": "button[type='submit'], input[type='submit'], button:has-text('Prenota'), button:has-text('Conferma'), button:has-text('Book')",
+    "confirmButton": "button:has-text('Conferma'), button:has-text('Confirm'), input[type='submit']",
+    "stripeCardFrame": "iframe[title*='card number']",
+    "stripeExpiryFrame": "iframe[title*='expir']",
+    "stripeCvcFrame": "iframe[title*='cvc']",
+    "payButton": "button:has-text('Paga'), button:has-text('Pay'), button:has-text('Conferma pagamento')"
+  },
+  "timeout": 30000,
+  "viewport": { "width": 1280, "height": 720 },
+  "waitAfterPageLoad": 2000,
+  "maxDateLookaheadDays": 31,
+  "waitAfterPaymentConfirm": 30000,
+  "_comment_waitAfterPaymentConfirm": "ms dopo Conferma pagamento per 3D Secure / banca (0 = salta)",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
