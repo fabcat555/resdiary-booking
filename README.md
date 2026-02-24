@@ -2,18 +2,77 @@
 
 Automated tool (Playwright) to make restaurant reservations on venues using the **ResDiary** platform.
 
-## Requirements
+## Prerequisites (install from scratch)
 
-- Node.js 18+
-- Chromium (installed via Playwright)
+You need **Node.js 18 or newer** and **Chromium**. The steps below assume you have neither installed.
 
-## Setup
+### 1. Install Node.js
+
+Pick one method for your OS.
+
+**Option A – Official installer (all platforms)**  
+- Go to [nodejs.org](https://nodejs.org/) and download the **LTS** version.  
+- Run the installer and follow the prompts.  
+- Restart your terminal, then check:
+  ```bash
+  node -v   # should show v18.x or higher
+  npm -v    # should show 9.x or higher
+  ```
+
+**Option B – macOS / Linux with Homebrew**
+  ```bash
+  brew install node
+  node -v && npm -v
+  ```
+
+**Option C – macOS / Linux with nvm (Node Version Manager)**
+  ```bash
+  # Install nvm: https://github.com/nvm-sh/nvm#installing-and-updating
+  nvm install 18
+  nvm use 18
+  node -v && npm -v
+  ```
+
+**Option D – Windows with winget**
+  ```bash
+  winget install OpenJS.NodeJS.LTS
+  ```
+  Restart the terminal and run `node -v` and `npm -v`.
+
+### 2. Get the project
+
+If you have the repo locally, go to its folder. Otherwise clone it (replace with your repo URL if different):
 
 ```bash
+git clone <repository-url>
 cd resdiary-booking
+```
+
+### 3. Install dependencies and Chromium
+
+Install the project’s npm packages (this installs Playwright as a dependency) and then the Chromium browser used by Playwright:
+
+```bash
 npm install
 npx playwright install chromium
 ```
+
+Or use the project script for the browser only:
+
+```bash
+npm install
+npm run install-browsers
+```
+
+After this you have Node, the project dependencies, and Chromium. No need to install Playwright globally.
+
+### Summary: steps to run the tool
+
+1. Install Node.js 18+ (see above).  
+2. Open a terminal in the project folder (`resdiary-booking`).  
+3. Run `npm install`, then `npx playwright install chromium` (or `npm run install-browsers`).  
+4. Create and edit `config.json` (see [Configuration](#configuration)).  
+5. Run `npm run book` (or `npm run book:headed` to see the browser).
 
 ## Configuration
 
