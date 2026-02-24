@@ -2,7 +2,7 @@
   "bookingUrl": "https://booking.resdiary.com/widget/Standard/TRATTORIATRIPPA/8771",
   "useUrlParams": false,
   "_comment_urlParams": "Questo widget non supporta parametri in URL: data, ora e coperti vanno selezionati dallo script (dropdown + calendario).",
-  "_comment_iframe": "Se usi l'URL diretto del widget sopra, imposta \"iframe\": \"\" per saltare la ricerca iframe (stessi selectors, pagina = widget).",
+  "_comment_iframe": "Con URL diretto del widget (es. booking.resdiary.com/widget/...) lo script salta la ricerca iframe.",
   "reservation": {
     "date": "2026-04-24",
     "time": "19:45",
@@ -20,25 +20,8 @@
     "cvc": "123",
     "cardholderName": "Mario Rossi"
   },
-  "selectors": {
-    "iframe": "",
-    "partySizeDropdown": "#party-size-input .covers-input, #party-size-input .dropdown-selected, #party-size-input",
-    "datePickerDay": "td[data-action='selectDay'][data-day='__DATE__']:not(.disabled)",
-    "timeDropdown": ".rd-time-dropdown .dropdown-selected, .time-dropdown-input, .selected-text",
-    "firstNameInput": "#firstName",
-    "lastNameInput": "#lastName",
-    "emailInput": "#emailAddress",
-    "phoneInput": "#mobile",
-    "nextButton": "button.btn-next",
-    "cardholderNameInput": "input[data-id='cardholder-name-input']",
-    "stripeCardFrame": "#card-number iframe",
-    "stripeExpiryFrame": "#card-expiry iframe",
-    "stripeCvcFrame": "#card-cvc iframe",
-    "payButton": "button[data-id='btn-next'], button.btn-next"
-  },
   "timeout": 30000,
   "waitAfterPageLoad": 800,
   "maxDateLookaheadDays": 31,
-  "datePickerWaitAfterMonthChange": 80,
   "waitAfterPaymentConfirm": 45000
 }

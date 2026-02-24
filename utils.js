@@ -38,17 +38,17 @@ export function findLocator(context, selectorString) {
   return context.locator(sel).first();
 }
 
-/** Selector di default per i widget ResDiary / Trippa (sovrascrivibili da config.json). */
+/** ResDiary widget selectors (hardcoded; same structure across ResDiary/Trippa). */
 export const DEFAULT_SELECTORS = {
   iframe: "iframe[src*='resdiary'], iframe[src*='book.']",
   dateInput: "input[name='date'], input[id*='date'], input[type='date']",
   timeSelect: "select[name='time'], select[id*='time']",
   partySizeSelect: "select[name='partySize'], select[name='covers'], select[id*='party'], select[id*='covers']",
   nameInput: "input[name='name'], input[name='firstName'], input[id*='name']",
-  firstNameInput: "input#firstName, input[name='firstName']",
-  lastNameInput: "input#lastName, input[name='lastName']",
-  emailInput: "input[name='email'], input[type='email'], input[id*='email'], input#emailAddress",
-  phoneInput: "input[name='phone'], input[name='telephone'], input[name='mobile'], input[id*='phone'], input#mobile",
+  firstNameInput: "#firstName",
+  lastNameInput: "#lastName",
+  emailInput: "#emailAddress",
+  phoneInput: "#mobile",
   searchAvailabilityButton: "button:has-text('Cerca'), button:has-text('Search'), button:has-text('Verifica'), a:has-text('Cerca')",
   timeSlotButton: "button[data-time], a[data-time], .time-slot, [class*='timeslot']",
   submitButton: "button[type='submit'], input[type='submit'], button:has-text('Prenota'), button:has-text('Conferma'), button:has-text('Book'), button:has-text('Confirm'), button:has-text('Completa Prenotazione'), button:has-text('Invia prenotazione')",
@@ -56,26 +56,29 @@ export const DEFAULT_SELECTORS = {
   nextButton: "button.btn-next",
   promotionContainer: "#promotion .list-group-promotion, .list-group.list-group-promotion",
   promotionFirstOption: ".list-group-promotion .list-group-item, .list-group-promotion .clickable-promotion-text",
-  partySizeDropdown: "",
-  datePickerDay: "",
+  partySizeDropdown: "#party-size-input .covers-input, #party-size-input .dropdown-selected, #party-size-input",
+  datePickerDay: "td[data-action='selectDay'][data-day='__DATE__']:not(.disabled)",
   datePickerNext: "th.next[data-action='next']:not(.disabled), .datepicker th.next:not(.disabled)",
   datePickerPrev: "th.prev[data-action='previous']:not(.disabled), .datepicker th.prev:not(.disabled)",
-  timeDropdown: "",
-  stripeCardFrame: "iframe[title*='card number'], iframe[title*='Card number'], #card-number iframe",
-  stripeExpiryFrame: "iframe[title*='expir'], iframe[title*='Expir'], #card-expiry iframe",
-  stripeCvcFrame: "iframe[title*='cvc'], iframe[title*='CVC'], iframe[title*='security code'], #card-cvc iframe",
+  timeDropdown: ".rd-time-dropdown .dropdown-selected, .time-dropdown-input, .selected-text",
+  timeSlotRow: "li.timeslot-row",
+  timeSlotText: ".timeslot-text",
+  stripeCardFrame: "#card-number iframe",
+  stripeExpiryFrame: "#card-expiry iframe",
+  stripeCvcFrame: "#card-cvc iframe",
   stripeCardInput: "input[name='cardnumber']",
   stripeExpiryInput: "input[name='exp-date']",
   stripeCvcInput: "input[name='cvc']",
-  cardholderNameInput: "input[data-id='cardholder-name-input'], input[name='billingName'], input[name='cardholderName']",
-  payButton: "button:has-text('Paga'), button:has-text('Pay'), button:has-text('Conferma pagamento'), button[data-id='btn-next']",
+  cardholderNameInput: "input[data-id='cardholder-name-input']",
+  payButton: "button[data-id='btn-next'], button.btn-next",
 };
 
-/** Converte un orario in minuti da mezzanotte. Formato HH:mm (accetta anche HH.mm). Restituisce NaN se non parsabile. */
+/** Converte un orario in minuti da mezzanotte. ResDiary usa sempre HH:mm (24h). Accetta anche H:mm e HH.mm. Restituisce NaN se non parsabile. */
 export function parseTimeToMinutes(str) {
   if (!str || typeof str !== 'string') return NaN;
   const normalized = String(str).trim().replace('.', ':');
-  const d = parse(normalized, 'H:mm', new Date(0));
+  let d = parse(normalized, 'HH:mm', new Date(0));
+  if (!isValid(d)) d = parse(normalized, 'H:mm', new Date(0));
   if (!isValid(d)) return NaN;
   const h = getHours(d);
   const min = getMinutes(d);
@@ -83,7 +86,7 @@ export function parseTimeToMinutes(str) {
   return h * 60 + min;
 }
 
-/** Indice dell'orario più vicino a requestedMinutes (avanti o indietro). times sono stringhe in formato HH:mm (o HH.mm). */
+/** Indice dell'orario più vicino a requestedMinutes (avanti o indietro). times in formato HH:mm. */
 export function findClosestTimeIndex(requestedMinutes, times) {
   if (!times.length || Number.isNaN(requestedMinutes)) return 0;
   let bestIdx = 0;
@@ -100,7 +103,7 @@ export function findClosestTimeIndex(requestedMinutes, times) {
   return bestIdx;
 }
 
-/** Parsa una stringa DD/MM/YYYY in Date; ritorna null se invalida. */
+/** Parsa una stringa DD/MM/YYYY in Date (ResDiary usa sempre questo formato). Ritorna null se invalida. */
 export function parseDdMmYyyy(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const d = parse(dateStr, 'dd/MM/yyyy', new Date());

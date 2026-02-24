@@ -1,6 +1,6 @@
 /**
  * Script Playwright per prenotazioni automatiche su siti che usano ResDiary.
- * Supporta URL con parametri (date, time, partySize), iframe e selectors configurabili.
+ * Supporta URL con parametri (date, time, partySize) e iframe. Selectors ResDiary hardcoded in utils.js.
  *
  * Uso:
  *   npm run book
@@ -30,8 +30,10 @@ if (process.execArgv?.some((a) => String(a).includes('inspect'))) {
  * @param {object} config
  */
 async function runBooking(page, config) {
-  const { reservation, contact, selectors: configSelectors, useUrlParams, waitAfterPageLoad, waitAfterPaymentConfirm } = config;
-  const sel = { ...DEFAULT_SELECTORS, ...configSelectors };
+  const { reservation, contact, useUrlParams, waitAfterPageLoad, waitAfterPaymentConfirm } = config;
+  const sel = DEFAULT_SELECTORS;
+  const isDirectWidgetUrl = config.bookingUrl && String(config.bookingUrl).includes('/widget');
+  const iframeSel = isDirectWidgetUrl ? '' : sel.iframe;
 
   const baseUrl = config.bookingUrl;
   const finalUrl = useUrlParams !== false && reservation ? buildBookingUrl(baseUrl, reservation) : baseUrl;
@@ -41,11 +43,11 @@ async function runBooking(page, config) {
   await page.goto(finalUrl, gotoOpts);
 
   let ctx = page;
-  if (sel.iframe) {
-    const frameEl = page.locator(sel.iframe).first();
+  if (iframeSel) {
+    const frameEl = page.locator(iframeSel).first();
     try {
       await frameEl.waitFor({ state: 'visible', timeout: 5000 });
-      ctx = page.frameLocator(sel.iframe).first();
+      ctx = page.frameLocator(iframeSel).first();
       console.log('Utilizzo contenuto iframe ResDiary.');
     } catch {
       console.log('Nessun iframe trovato, uso pagina principale.');
@@ -54,7 +56,7 @@ async function runBooking(page, config) {
 
   // Procedi appena il form è pronto (primo elemento visibile), max waitAfterPageLoad ms
   const maxWait = typeof waitAfterPageLoad === 'number' ? waitAfterPageLoad : 5000;
-  const firstFormSel = sel.partySizeDropdown || sel.timeDropdown || '.rd-time-dropdown, #party-size-input, [class*="datepicker"]';
+  const firstFormSel = sel.partySizeDropdown || sel.timeDropdown;
   if (firstFormSel) {
     try {
       await ctx.locator(firstFormSel.split(',')[0].trim()).first().waitFor({ state: 'visible', timeout: maxWait });
@@ -119,7 +121,7 @@ async function runBooking(page, config) {
   /** Seleziona l'orario richiesto o il più vicino disponibile nel select. */
   const selectTimeClosest = async (context, requestedTime, selectorMap) => {
     if (!requestedTime) return;
-    const timeSel = selectorMap.timeSelect || DEFAULT_SELECTORS.timeSelect;
+    const timeSel = selectorMap.timeSelect;
     const loc = context.locator(timeSel).first();
     try {
       await loc.waitFor({ state: 'visible', timeout: 5000 });
@@ -181,7 +183,7 @@ async function runBooking(page, config) {
 
   // Step 1: data/ora/numero persone
   if (reservation) {
-    const partyDropdown = sel.partySizeDropdown || '';
+    const partyDropdown = sel.partySizeDropdown;
     if (partyDropdown) {
       try {
         await ctx.locator(partyDropdown).first().click();
@@ -195,93 +197,75 @@ async function runBooking(page, config) {
       await selectOption('partySizeSelect', reservation.partySize, 'coperti');
     }
 
-    const datePickerSel = sel.datePickerDay || '';
+    await page.waitForTimeout(1500);
+
+    const datePickerSel = sel.datePickerDay;
     let selectedDateIso = reservation?.date || '';
     if (datePickerSel && reservation.date) {
-      const [y, m, d] = reservation.date.split('-');
-      const dayFormatted = `${d}/${m}/${y}`;
-      const dayCellSelAny = datePickerSel.replace('__DATE__', dayFormatted).replace(/:not\(\.disabled\)/g, '');
-      const nextSel = sel.datePickerNext || DEFAULT_SELECTORS.datePickerNext;
-      const prevSel = sel.datePickerPrev || DEFAULT_SELECTORS.datePickerPrev;
-      const waitAfterMonthMs = config.datePickerWaitAfterMonthChange ?? 80;
-      const dayPollIntervalMs = 60;
-      const dayPollMaxAttempts = 8;
-      let clicked = false;
-      const tryClickDay = async (waitForLoad = false) => {
-        const cell = ctx.locator(dayCellSelAny).first();
-        const visibleTimeout = waitForLoad ? 3000 : 600;
-        try {
-          await cell.waitFor({ state: 'visible', timeout: visibleTimeout });
-        } catch {
-          return false;
-        }
-        for (let attempt = 0; attempt < dayPollMaxAttempts; attempt++) {
-          const cls = await cell.getAttribute('class').catch(() => '');
-          if (cls && cls.includes('disabled')) {
-            await page.waitForTimeout(dayPollIntervalMs);
-            continue;
-          }
-          await cell.click();
-          return true;
-        }
-        return false;
-      };
+      const targetDate = parseIsoDate(reservation.date);
+      if (!targetDate) {
+        await fill('dateInput', reservation.date, 'data');
+      } else {
+        const monthSuffix = '/' + format(targetDate, 'MM/yyyy');
+        const dayFormatted = format(targetDate, 'dd/MM/yyyy');
+        const calendarScopeSel = `table:has(td[data-day$='${monthSuffix}']), [class*="calendar"]:has(td[data-day$='${monthSuffix}'])`;
+        const nextSel = sel.datePickerNext;
+        const prevSel = sel.datePickerPrev;
+        const waitAfterMonthMs = 500;
+        const dayPollIntervalMs = 60;
+        const dayPollMaxAttempts = 8;
+        let clicked = false;
 
-      const onRightMonthButDayDisabled = async () => {
-        const cell = ctx.locator(dayCellSelAny).first();
-        const visible = await cell.isVisible().catch(() => false);
-        if (!visible) return false;
-        const cls = await cell.getAttribute('class').catch(() => '');
-        return !!(cls && cls.includes('disabled'));
-      };
-
-      for (let i = 0; i < 12 && !clicked; i++) {
-        clicked = await tryClickDay(i > 0);
-        if (clicked) break;
-        if (await onRightMonthButDayDisabled()) {
-          const adjacentRadius = config.dateAdjacentRadiusDays ?? 15;
-          const fallbackDay = await selectAdjacentAvailableDate(reservation.date, datePickerSel, adjacentRadius);
-          if (fallbackDay) {
-            console.log(`  Data richiesta non disponibile, selezionata data adiacente: ${fallbackDay}`);
-            const dt = parseDdMmYyyy(fallbackDay);
-            if (dt) selectedDateIso = toIsoDate(dt);
-            clicked = true;
-          }
-          break;
-        }
-        if (nextSel) {
+        const tryClickDayInScope = async (scope) => {
+          const cellSel = datePickerSel.replace('__DATE__', dayFormatted).replace(/:not\(\.disabled\)/g, '');
+          const cell = scope.locator(cellSel).first();
           try {
-            await ctx.locator(nextSel).first().click();
-            await page.waitForTimeout(waitAfterMonthMs);
+            await cell.waitFor({ state: 'visible', timeout: 1500 });
           } catch {
-            break;
+            return false;
           }
-        }
-      }
-      if (!clicked && prevSel) {
-        for (let back = 0; back < 24; back++) {
-          try {
-            await ctx.locator(prevSel).first().click();
-            await page.waitForTimeout(waitAfterMonthMs);
-          } catch {
-            break;
-          }
-        }
-        for (let i = 0; i < 12 && !clicked; i++) {
-          clicked = await tryClickDay(i > 0);
-          if (clicked) break;
-          if (await onRightMonthButDayDisabled()) {
-            const adjacentRadius = config.dateAdjacentRadiusDays ?? 15;
-            const fallbackDay = await selectAdjacentAvailableDate(reservation.date, datePickerSel, adjacentRadius);
-            if (fallbackDay) {
-              console.log(`  Data richiesta non disponibile, selezionata data adiacente: ${fallbackDay}`);
-              const dt = parseDdMmYyyy(fallbackDay);
-              if (dt) selectedDateIso = toIsoDate(dt);
-              clicked = true;
+          for (let attempt = 0; attempt < dayPollMaxAttempts; attempt++) {
+            const cls = await cell.getAttribute('class').catch(() => '');
+            if (cls && cls.includes('disabled')) {
+              await page.waitForTimeout(dayPollIntervalMs);
+              continue;
             }
-            break;
+            await cell.click();
+            return true;
           }
-          if (nextSel) {
+          return false;
+        };
+
+        const monthScopeVisible = async () => (await ctx.locator(calendarScopeSel).count()) > 0;
+
+        const dayVisibleButDisabledInScope = async (scope) => {
+          const cellSel = datePickerSel.replace('__DATE__', dayFormatted).replace(/:not\(\.disabled\)/g, '');
+          const cell = scope.locator(cellSel).first();
+          if (await cell.isVisible().catch(() => false)) {
+            const cls = await cell.getAttribute('class').catch(() => '');
+            if (cls && cls.includes('disabled')) return true;
+          }
+          return false;
+        };
+
+        for (let i = 0; i < 12 && !clicked; i++) {
+          if (await monthScopeVisible()) {
+            const scope = ctx.locator(calendarScopeSel).first();
+            clicked = await tryClickDayInScope(scope);
+            if (clicked) break;
+            if (await dayVisibleButDisabledInScope(scope)) {
+              const adjacentRadius = config.dateAdjacentRadiusDays ?? 15;
+              const fallbackDay = await selectAdjacentAvailableDate(reservation.date, datePickerSel, adjacentRadius);
+              if (fallbackDay) {
+                console.log(`  Data richiesta non disponibile, selezionata data adiacente: ${fallbackDay}`);
+                const dt = parseDdMmYyyy(fallbackDay);
+                if (dt) selectedDateIso = toIsoDate(dt);
+                clicked = true;
+              }
+              break;
+            }
+          }
+          if (nextSel && !clicked) {
             try {
               await ctx.locator(nextSel).first().click();
               await page.waitForTimeout(waitAfterMonthMs);
@@ -290,67 +274,105 @@ async function runBooking(page, config) {
             }
           }
         }
-      }
-      if (clicked) {
-        if (!selectedDateIso || selectedDateIso === reservation.date) {
-          console.log('  Selezionata data (calendario)');
+
+        if (!clicked && prevSel) {
+          for (let back = 0; back < 24; back++) {
+            try {
+              await ctx.locator(prevSel).first().click();
+              await page.waitForTimeout(waitAfterMonthMs);
+            } catch {
+              break;
+            }
+          }
+          for (let i = 0; i < 12 && !clicked; i++) {
+            if (await monthScopeVisible()) {
+              const scope = ctx.locator(calendarScopeSel).first();
+              clicked = await tryClickDayInScope(scope);
+              if (clicked) break;
+              if (await dayVisibleButDisabledInScope(scope)) {
+                const adjacentRadius = config.dateAdjacentRadiusDays ?? 15;
+                const fallbackDay = await selectAdjacentAvailableDate(reservation.date, datePickerSel, adjacentRadius);
+                if (fallbackDay) {
+                  console.log(`  Data richiesta non disponibile, selezionata data adiacente: ${fallbackDay}`);
+                  const dt = parseDdMmYyyy(fallbackDay);
+                  if (dt) selectedDateIso = toIsoDate(dt);
+                  clicked = true;
+                }
+                break;
+              }
+            }
+            if (nextSel && !clicked) {
+              try {
+                await ctx.locator(nextSel).first().click();
+                await page.waitForTimeout(waitAfterMonthMs);
+              } catch {
+                break;
+              }
+            }
+          }
         }
-      } else {
-        const adjacentRadius = config.dateAdjacentRadiusDays ?? 15;
-        const fallbackDay = await selectAdjacentAvailableDate(reservation.date, datePickerSel, adjacentRadius);
-        if (fallbackDay) {
-          console.log(`  Data richiesta non disponibile, selezionata data adiacente: ${fallbackDay}`);
-          const dt = parseDdMmYyyy(fallbackDay);
-          if (dt) selectedDateIso = toIsoDate(dt);
+
+        if (clicked) {
+          if (!selectedDateIso || selectedDateIso === reservation.date) {
+            console.log('  Selezionata data (calendario)');
+          }
         } else {
-          console.warn('  Calendario data: giorno non trovato o non cliccabile');
-          await fill('dateInput', reservation.date, 'data');
+          const adjacentRadius = config.dateAdjacentRadiusDays ?? 15;
+          const fallbackDay = await selectAdjacentAvailableDate(reservation.date, datePickerSel, adjacentRadius);
+          if (fallbackDay) {
+            console.log(`  Data richiesta non disponibile, selezionata data adiacente: ${fallbackDay}`);
+            const dt = parseDdMmYyyy(fallbackDay);
+            if (dt) selectedDateIso = toIsoDate(dt);
+          } else {
+            console.warn('  Calendario data: giorno non trovato o non cliccabile');
+            await fill('dateInput', reservation.date, 'data');
+          }
         }
       }
     } else {
       await fill('dateInput', reservation.date, 'data');
     }
 
-    const timeDropSel = sel.timeDropdown || '';
-    const timeListSel = '.rd-time-dropdown .time-list-container li, .time-list-container .drop-list li, .drop-list li, [class*="timeslot"]';
+    const timeDropSel = sel.timeDropdown;
+    const timeRowSel = sel.timeSlotRow;
+    const timeSlotTextSel = sel.timeSlotText;
     if (timeDropSel && reservation.time) {
       try {
         await ctx.locator(timeDropSel).first().click();
+        await page.waitForTimeout(150);
         const hasTimeDropdown = (await ctx.locator('time-dropdown').first().count().catch(() => 0)) > 0;
         const scope = hasTimeDropdown ? ctx.locator('time-dropdown').first() : ctx;
-        const exactItem = scope.locator(timeListSel).filter({ hasText: reservation.time }).first();
-        try {
-          await exactItem.click({ timeout: 100 });
-          console.log('  Selezionato orario richiesto (dropdown)');
-        } catch {
-          const items = scope.locator(timeListSel);
-          await items.first().waitFor({ state: 'visible', timeout: 4000 }).catch(() => null);
-          const texts = await items.evaluateAll((nodes) => nodes.map((el) => (el.textContent || '').trim()).filter(Boolean));
-          const requestedMin = parseTimeToMinutes(reservation.time);
-          const idx = findClosestTimeIndex(requestedMin, texts);
-          const chosenTimeStr = (texts[idx] || '').trim();
-          if (!chosenTimeStr) {
-            console.warn('  Nessun orario disponibile nel dropdown');
-          } else {
-            // Locate by text so we click the right element (texts can be fewer than items if some are empty)
-            const chosen = scope.locator(timeListSel).filter({ hasText: chosenTimeStr }).first();
-            await chosen.scrollIntoViewIfNeeded().catch(() => null);
-            try {
-              await chosen.click({ timeout: 2000 });
-            } catch {
-              await chosen.evaluate((el) => el.click());
-            }
-            console.log('  Orario richiesto non disponibile, selezionato orario più vicino:', chosenTimeStr);
-            await page.waitForTimeout(120);
+        const items = scope.locator(timeRowSel);
+        await items.first().waitFor({ state: 'visible', timeout: 4000 }).catch(() => null);
+        const texts = await items.evaluateAll((nodes, textSel) => nodes.map((el) => { const p = el.querySelector(textSel); return p ? (p.textContent || '').trim() : ''; }), timeSlotTextSel);
+        const requestedMin = parseTimeToMinutes(reservation.time);
+        let idx = -1;
+        for (let i = 0; i < texts.length; i++) {
+          if (parseTimeToMinutes(texts[i]) === requestedMin) {
+            idx = i;
+            break;
           }
         }
-        // Chiudi il dropdown e attendi prima di cliccare Successivo (evita che la lista resti aperta o si riapra)
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(40);
-        if (hasTimeDropdown) {
-          await ctx.locator('time-dropdown .time-list-container').first().waitFor({ state: 'hidden', timeout: 2000 }).catch(() => null);
+        if (idx < 0) idx = findClosestTimeIndex(requestedMin, texts);
+        const chosenTimeStr = (texts[idx] || '').trim();
+        if (!chosenTimeStr) {
+          console.warn('  Nessun orario disponibile nel dropdown');
+        } else {
+          const chosen = items.nth(idx);
+          await chosen.scrollIntoViewIfNeeded().catch(() => null);
+          await page.waitForTimeout(40);
+          try {
+            await chosen.click({ timeout: 2000 });
+          } catch {
+            await chosen.evaluate((el) => el.click());
+          }
+          if (parseTimeToMinutes(chosenTimeStr) === requestedMin) {
+            console.log('  Selezionato orario richiesto (dropdown)');
+          } else {
+            console.log('  Orario richiesto non disponibile, selezionato orario più vicino:', chosenTimeStr);
+          }
+          await page.waitForTimeout(120);
         }
-        await page.waitForTimeout(20);
       } catch (e) {
         console.warn('  Dropdown orario:', e.message);
         await selectTimeClosest(ctx, reservation.time, sel);
@@ -364,8 +386,8 @@ async function runBooking(page, config) {
   }
 
   // Step 1b: eventuale scelta tipo tavolo / promozione (es. interno o esterno)
-  const promotionContainerSel = sel.promotionContainer || DEFAULT_SELECTORS.promotionContainer;
-  const promotionOptionSel = sel.promotionFirstOption || DEFAULT_SELECTORS.promotionFirstOption;
+  const promotionContainerSel = sel.promotionContainer;
+  const promotionOptionSel = sel.promotionFirstOption;
   try {
     const promoContainer = ctx.locator(promotionContainerSel).first();
     await promoContainer.waitFor({ state: 'visible', timeout: 2000 });
@@ -382,8 +404,8 @@ async function runBooking(page, config) {
 
   // Step 2: dati di contatto
   if (contact) {
-    const firstSel = sel.firstNameInput || '';
-    const lastSel = sel.lastNameInput || '';
+    const firstSel = sel.firstNameInput;
+    const lastSel = sel.lastNameInput;
     if (firstSel && lastSel) {
       const firstName = contact.firstName || (contact.name ? contact.name.split(/\s+/)[0] : '');
       const lastName = contact.lastName || (contact.name ? contact.name.split(/\s+/).slice(1).join(' ') : '');
@@ -450,12 +472,12 @@ async function runBooking(page, config) {
 async function fillStripePayment(page, ctx, data, sel) {
   const { cardNumber, expiry, cvc, cardholderName } = data;
   const tryContext = async (context) => {
-    const cardFrameSel = sel.stripeCardFrame || DEFAULT_SELECTORS.stripeCardFrame;
-    const expiryFrameSel = sel.stripeExpiryFrame || DEFAULT_SELECTORS.stripeExpiryFrame;
-    const cvcFrameSel = sel.stripeCvcFrame || DEFAULT_SELECTORS.stripeCvcFrame;
-    const cardInputSel = sel.stripeCardInput || DEFAULT_SELECTORS.stripeCardInput;
-    const expiryInputSel = sel.stripeExpiryInput || DEFAULT_SELECTORS.stripeExpiryInput;
-    const cvcInputSel = sel.stripeCvcInput || DEFAULT_SELECTORS.stripeCvcInput;
+    const cardFrameSel = sel.stripeCardFrame;
+    const expiryFrameSel = sel.stripeExpiryFrame;
+    const cvcFrameSel = sel.stripeCvcFrame;
+    const cardInputSel = sel.stripeCardInput;
+    const expiryInputSel = sel.stripeExpiryInput;
+    const cvcInputSel = sel.stripeCvcInput;
     let ok = false;
     try {
       const cardFrame = context.frameLocator(cardFrameSel).first();
@@ -485,7 +507,7 @@ async function fillStripePayment(page, ctx, data, sel) {
       // skip
     }
     if (cardholderName) {
-      const cardholderSel = sel.cardholderNameInput || DEFAULT_SELECTORS.cardholderNameInput;
+      const cardholderSel = sel.cardholderNameInput;
       try {
         const nameLoc = context.locator(cardholderSel).first();
         await nameLoc.waitFor({ state: 'visible', timeout: 1200 });

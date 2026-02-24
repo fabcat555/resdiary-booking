@@ -89,7 +89,8 @@ cp config.example.json config.json
 - **reservation**: `date` (YYYY-MM-DD), `time` (e.g. 19:30), `partySize` (number of guests). Used by the script to fill the calendar and dropdown when `useUrlParams` is `false`.
 - **contact**: `name`, `email`, `phone`.
 - **payment** (optional): if the restaurant requires a card (Stripe payment), add `cardNumber`, `expiry` (MM/YY), `cvc`, and optionally `cardholderName`. To avoid storing the card in `config.json`, use env vars: `STRIPE_CARD_NUMBER`, `STRIPE_EXPIRY`, `STRIPE_CVC`, `STRIPE_CARDHOLDER_NAME`.
-- **selectors**: (optional) if the restaurant’s widget uses different classes/IDs, you can override selectors for date, time, party size, name, email, phone, buttons, and (for Stripe) iframes and card fields.
+
+All ResDiary widget selectors are hardcoded in `utils.js` (`DEFAULT_SELECTORS`); config does not override them. In the widget, dates are always **DD/MM/YYYY** and times **HH:mm** (24-hour).
 
 ### Trippa Milano preset
 
@@ -103,7 +104,7 @@ Then edit `reservation`, `contact`, and `payment` with your details.
 
 You can use either the restaurant’s page or the **direct widget URL**:
 - **Website** (e.g. `https://www.trippamilano.it/book-a-table-2/`): the widget is in an iframe; the script detects it and works inside it.
-- **Direct widget** (e.g. `https://booking.resdiary.com/widget/Standard/TRATTORIATRIPPA/8771`): no iframe; the script uses the main page. Same selectors, same flow. To skip iframe detection (and ~5 s wait), set `"iframe": ""` in config.
+- **Direct widget** (e.g. `https://booking.resdiary.com/widget/Standard/TRATTORIATRIPPA/8771`): the script detects the URL and skips iframe lookup, using the main page directly.
 
 The preset uses:
 
@@ -158,5 +159,5 @@ Tests use Playwright Test; for a meaningful run you need a `config.json` with a 
 
 - The ResDiary widget may be inside an **iframe**: the script finds an iframe whose `src` contains `resdiary` or `book.` and runs inside it.
 - **Stripe payment**: many ResDiary restaurants ask for a card (deposit/hold) via Stripe. After submitting contact and reservation, the script fills the Stripe iframes (card number, expiry, CVC) and clicks Pay/Confirm. Stripe iframe titles (e.g. “Secure card number input frame”) can vary; in that case override `selectors.stripeCardFrame`, `stripeExpiryFrame`, `stripeCvcFrame` in `config.json`.
-- Default selectors are generic; if a restaurant customizes the widget you may need custom **selectors** in `config.json`.
+- Selectors are fixed for ResDiary widgets in `utils.js`; they are not configurable.
 - ResDiary can use multi-step flows (e.g. check availability → choose slot → contact details → confirm → payment). The selectors `searchAvailabilityButton`, `timeSlotButton`, `submitButton`, `confirmButton`, `payButton` handle these steps; adjust them for the actual site if needed.

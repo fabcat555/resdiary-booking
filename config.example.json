@@ -19,25 +19,8 @@
     "cardholderName": "Mario Rossi"
   },
   "_comment_payment": "Per non mettere la carta in config.json usa le variabili d'ambiente: STRIPE_CARD_NUMBER, STRIPE_EXPIRY, STRIPE_CVC, STRIPE_CARDHOLDER_NAME",
-  "selectors": {
-    "iframe": "iframe[src*='resdiary'], iframe[src*='book.']",
-    "partySizeDropdown": "#party-size-input .covers-input, #party-size-input .dropdown-selected, #party-size-input",
-    "datePickerDay": "td[data-action='selectDay'][data-day='__DATE__']:not(.disabled)",
-    "timeDropdown": ".rd-time-dropdown .dropdown-selected, .time-dropdown-input, .selected-text",
-    "firstNameInput": "#firstName",
-    "lastNameInput": "#lastName",
-    "emailInput": "#emailAddress",
-    "phoneInput": "#mobile",
-    "nextButton": "button.btn-next",
-    "cardholderNameInput": "input[data-id='cardholder-name-input']",
-    "stripeCardFrame": "#card-number iframe",
-    "stripeExpiryFrame": "#card-expiry iframe",
-    "stripeCvcFrame": "#card-cvc iframe",
-    "payButton": "button[data-id='btn-next'], button.btn-next"
-  },
   "timeout": 30000,
   "waitAfterPageLoad": 2000,
   "maxDateLookaheadDays": 31,
-  "datePickerWaitAfterMonthChange": 80,
   "waitAfterPaymentConfirm": 40000
 }
