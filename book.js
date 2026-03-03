@@ -184,12 +184,37 @@ async function runBooking(page, config) {
   // Step 1: data/ora/numero persone
   if (reservation) {
     const partyDropdown = sel.partySizeDropdown;
+    const partyOptionSel = sel.partySizeOptionItem;
     if (partyDropdown) {
       try {
-        await ctx.locator(partyDropdown).first().click();
-        await page.waitForTimeout(60);
-        await ctx.locator(`li:has-text('${reservation.partySize}')`).first().click();
-        console.log('  Selezionati coperti (dropdown)');
+        const trigger = ctx.locator(partyDropdown).first();
+        await trigger.waitFor({ state: 'visible', timeout: 5000 });
+        await trigger.scrollIntoViewIfNeeded().catch(() => null);
+        await trigger.click();
+        await page.waitForTimeout(250);
+        if (partyOptionSel) {
+          const options = ctx.locator(partyOptionSel);
+          await options.first().waitFor({ state: 'visible', timeout: 2000 }).catch(() => null);
+          const count = await options.count().catch(() => 0);
+          const target = String(reservation.partySize);
+          let clicked = false;
+          for (let i = 0; i < count; i++) {
+            const text = (await options.nth(i).textContent().catch(() => '')).trim();
+            if (text === target) {
+              await options.nth(i).click();
+              clicked = true;
+              console.log('  Selezionati coperti (dropdown):', target);
+              break;
+            }
+          }
+          if (!clicked && count > 0) {
+            await options.first().click();
+            console.log('  Selezionati coperti (dropdown, prima opzione)');
+          }
+        } else {
+          await ctx.locator(`li:has-text('${reservation.partySize}')`).first().click();
+          console.log('  Selezionati coperti (dropdown)');
+        }
       } catch (e) {
         console.warn('  Dropdown coperti:', e.message);
       }
@@ -331,6 +356,60 @@ async function runBooking(page, config) {
       }
     } else {
       await fill('dateInput', reservation.date, 'data');
+    }
+
+    // Optional: area/position (Zona) e.g. Sala interna, Bancone – only when AllowAreaChoice is true
+    const areaDropdownSel = sel.areaDropdown;
+    const areaOptionSel = sel.areaOptionItem;
+    if (areaDropdownSel && areaOptionSel) {
+      try {
+        const areaLoc = ctx.locator(areaDropdownSel).first();
+        const isVisible = await areaLoc.isVisible().catch(() => false);
+        if (isVisible) {
+          await areaLoc.click();
+          await page.waitForTimeout(150);
+          const options = ctx.locator(areaOptionSel);
+          const count = await options.count().catch(() => 0);
+          if (count > 0) {
+            const preferredArea = (reservation.area || reservation.preferredArea || '').trim();
+            let clicked = false;
+            if (preferredArea) {
+              for (let i = 0; i < count; i++) {
+                const text = (await options.nth(i).textContent().catch(() => '')).trim();
+                if (text && text.toLowerCase().includes(preferredArea.toLowerCase())) {
+                  await options.nth(i).click();
+                  clicked = true;
+                  console.log('  Selezionata zona:', text);
+                  break;
+                }
+              }
+            }
+            if (!clicked) {
+              const first = options.first();
+              const cls = await first.getAttribute('class').catch(() => '');
+              if (!cls || !cls.includes('disabled')) {
+                await first.click();
+                console.log('  Selezionata prima zona disponibile');
+                clicked = true;
+              } else {
+                for (let i = 1; i < count; i++) {
+                  const el = options.nth(i);
+                  const c = await el.getAttribute('class').catch(() => '');
+                  if (!c || !c.includes('disabled')) {
+                    await el.click();
+                    console.log('  Selezionata zona disponibile');
+                    clicked = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (clicked) await page.waitForTimeout(200);
+          }
+        }
+      } catch {
+        // area step not present or failed – continue
+      }
     }
 
     const timeDropSel = sel.timeDropdown;

@@ -86,7 +86,7 @@ cp config.example.json config.json
 
 - **bookingUrl**: ResDiary booking page URL (restaurant website or direct widget URL).
 - **useUrlParams**: if `true`, appends ResDiary query params `date`, `time`, `partySize` to the URL. **Most widgets (e.g. Trippa) do not support them**: keep `false` and date, time and party size are selected in the UI (calendar + dropdown).
-- **reservation**: `date` (YYYY-MM-DD), `time` (e.g. 19:30), `partySize` (number of guests). Used by the script to fill the calendar and dropdown when `useUrlParams` is `false`.
+- **reservation**: `date` (YYYY-MM-DD), `time` (e.g. 19:30), `partySize` (number of guests). Optional: `area` (or `preferredArea`) for the “Zona” step when the widget shows it (e.g. `"Sala interna"`, `"Bancone"`). If the area dropdown is visible and no preference is set, the first available option is selected.
 - **contact**: `name`, `email`, `phone`.
 - **payment** (optional): if the restaurant requires a card (Stripe payment), add `cardNumber`, `expiry` (MM/YY), `cvc`, and optionally `cardholderName`. To avoid storing the card in `config.json`, use env vars: `STRIPE_CARD_NUMBER`, `STRIPE_EXPIRY`, `STRIPE_CVC`, `STRIPE_CARDHOLDER_NAME`.
 
